@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2024年日历</title>
+<style>
+  body { 
+    font-family: Arial, sans-serif; 
+    background-color: pink; /* 更改背景颜色为粉红色 */
+  }
+  .calendar { 
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: center; 
+  }
+  .month { 
+    margin: 5px; /* 减小外边距 */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    border-radius: 8px;
+    position: relative;
+    padding: 15px; /* 减小内边距 */
+  }
+  .month h3 {
+    text-align: center;
+    margin-top: 0;
+  }
+  .days { 
+    display: grid; 
+    grid-template-columns: repeat(7, 1fr); 
+  }
+  .day { 
+    padding: 10px; 
+    cursor: pointer; 
+    user-select: none; 
+  }
+  .day:hover {
+    background-color: #e0e0e0;
+  }
+  .day.today { 
+    border: 2px solid green; 
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+  .count { 
+    position: absolute; 
+    top: 5px; 
+    right: 10px; 
+    font-size: 0.9em; 
+  }
+  .modal { 
+    display: none; 
+    position: fixed; 
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+    height: 100%; 
+    background-color: rgba(0,0,0,0.5); 
+    align-items: center; 
+    justify-content: center; 
+  }
+  .modal-content { 
+    background-color: white; 
+    padding: 20px; 
+    border-radius: 5px; 
+    text-align: center; 
+  }
+  .modal-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 1.5em;
+  }
+</style>
+</head>
+<body>
+<div id="calendar" class="calendar">
+  <!-- Calendar will be generated here by JavaScript -->
+</div>
+
+<div id="modal" class="modal" onclick="closeModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <span class="modal-close" onclick="closeModal(event)">&times;</span>
+    <p id="modal-message">💩今天拉屎次数：0，加油哦💩</p>
+    <div id="emojis" class="emojis">😄😄😄😄😄😄😄😄😄😄</div>
+  </div>
+</div>
+
+<audio id="click-sound" src="https://soundbible.com/grab.php?id=850&type=mp3"></audio>
+<script>
+const today = new Date().toISOString().split('T')[0];
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth();
+let todayClickCount = JSON.parse(localStorage.getItem('todayClickCount' + today)) || 0;
+let monthlyClickCounts = JSON.parse(localStorage.getItem('monthlyClickCounts' + currentYear)) || new Array(12).fill(0);
+
+function generateCalendar(year) {
+    const months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+    const calendarElement = document.getElementById('calendar');
+    months.forEach((month, index) => {
+        const monthElement = document.createElement('div');
+        monthElement.className = 'month';
+        monthElement.id = `month-${index}`;
+        monthElement.innerHTML = `<h3>${month}</h3><div class="days">${generateDays(year, index)}</div>`;
+        calendarElement.appendChild(monthElement);
+
+        const countInfo = document.createElement('div');
+        countInfo.className = 'count-info';
+        countInfo.innerHTML = index === currentMonth ? `<span>今日次数: 💩+${todayClickCount}</span><span>本月次数: 💩+${monthlyClickCounts[index]}</span>` : `<span>本月次数: 💩+${monthlyClickCounts[index]}</span>`;
+        monthElement.appendChild(countInfo);
+    });
+}
+
+function generateDays(year, month) {
+    const date = new Date(year, month, 1);
+    let daysHtml = '';
+    while (date.getMonth() === month) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const isToday = dateStr === today;
+        const dayClass = isToday ? 'day today' : 'day';
+        const dayContent = date.getDate();
+        const onClick = `onclick="selectDay(event, '${dateStr}', ${month})"`;
+        daysHtml += `<div class="${dayClass}" data-date="${dateStr}" ${onClick}>${dayContent}</div>`;
+        date.setDate(date.getDate() + 1);
+    }
+    return daysHtml;
+}
+
+function selectDay(event, dateStr, monthIndex) {
+    if (monthIndex !== currentMonth || dateStr !== today) return;
+
+    todayClickCount++;
+    monthlyClickCounts[monthIndex]++;
+    localStorage.setItem('todayClickCount' + today, JSON.stringify(todayClickCount));
+    localStorage.setItem('monthlyClickCounts' + currentYear, JSON.stringify(monthlyClickCounts));
+
+    updateCounts(monthIndex);
+    updateModalMessage();
+    showModal();
+    playClickSound();
+}
+
+function updateCounts(monthIndex) {
+    const currentMonthElement = document.getElementById(`month-${currentMonth}`);
+    const countInfo = currentMonthElement.querySelector('.count-info');
+    countInfo.innerHTML = `<span>今日次数: 💩+${todayClickCount}</span><span>本月次数: 💩+${monthlyClickCounts[currentMonth]}</span>`;
+}
+
+function updateModalMessage() {
+    const modalMessage = document.getElementById('modal-message');
+    modalMessage.innerHTML = `💩今天拉屎次数：${todayClickCount}，加油哦💩`;
+}
+
+function showModal() {
+    const modal = document.getElementById('modal');
+    modal.style.display = 'flex';
+    modal.style.opacity = 1;
+}
+
+function closeModal(event) {
+    if (event) event.stopPropagation();
+    const modal = document.getElementById('modal');
+    modal.style.opacity = 0;
+    setTimeout(() => modal.style.display = 'none', 300);
+    playClickSound();
+}
+
+function playClickSound() {
+    var sound = document.getElementById('click-sound');
+    sound.play();
+}
+
+generateCalendar(currentYear);
+</script>
+
